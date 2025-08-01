@@ -1,0 +1,29 @@
+name: 'promote feature branch'
+
+on:
+    push:
+      branches:
+        - 'feature/*'
+
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+
+      - name: Merge feature into developer
+        run: |
+          git config user.name "serggon"
+          git config user.email "seergio.goncalves@gmail.com"
+          git fetch origin developer
+          git checkout developer
+          git merge ${{ github.ref_name }} --allow-unrelated-histories
+          git push origin developer
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}       

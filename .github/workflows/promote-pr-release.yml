@@ -1,0 +1,51 @@
+name: Release PR Automation
+
+on:
+  push:
+    branches:
+      - main
+
+      
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          git fetch --tags
+          latest_tag=$(git tag --list "v*" | sort -V | tail -n1)
+          if [ -z "$latest_tag" ]; then
+            echo "tag=v0.0.1" >> $GITHUB_OUTPUT
+          else
+            # increment patch version
+            IFS='.' read -r major minor patch <<<"${latest_tag#v}"
+            patch=$((patch+1))
+            echo "tag=v${major}.${minor}.${patch}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create release branch
+        run: |
+          git checkout -b release/${{ steps.get_tag.outputs.tag }}
+          git push origin release/${{ steps.get_tag.outputs.tag }}
+
+      - name: Create tag
+        run: |
+          git tag ${{ steps.get_tag.outputs.tag }}
+          git push origin ${{ steps.get_tag.outputs.tag }}
+
+      - name: Create Pull Request to release
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: release/${{ steps.get_tag.outputs.tag }}
+          branch: developer
+          title: 'Release ${{ steps.get_tag.outputs.tag }}'
+          body: 'Automated PR: developer → release/${{ steps.get_tag.outputs.tag }}'
